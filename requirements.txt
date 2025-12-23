@@ -3,6 +3,8 @@ pandas
 numpy
 plotly
 geopandas
+geodatasets
 matplotlib
 seaborn
 openpyxl
+statsmodels
