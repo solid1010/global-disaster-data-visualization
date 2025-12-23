@@ -1,7 +1,8 @@
 streamlit
 pandas
 numpy
+plotly
+geopandas
 matplotlib
 seaborn
-geopandas
 openpyxl
