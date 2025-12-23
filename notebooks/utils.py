@@ -1,0 +1,125 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
+# Convert large numbers to human-readable format (K, M, B)
+def human_int(n):
+    n = float(n)
+    if n >= 1_000_000_000: return f"{n/1_000_000_000:.1f}B"
+    if n >= 1_000_000:     return f"{n/1_000_000:.1f}M"
+    if n >= 1_000:         return f"{n/1_000:.1f}K"
+    return f"{n:.0f}"
+
+
+def plot_hist_log_highlight_median(
+    ax,
+    s_raw,
+    title,
+    xlabel,
+    ticks_raw,
+    prefix="",
+    suffix="",
+    clip_q=0.99,
+    bins_n=40,
+    text_offset_factor=1.0
+):
+    # Convert to numeric and remove invalid values
+    s = pd.to_numeric(s_raw, errors="coerce").dropna()
+    s = s[s > 0]
+
+    # Handle empty input after filtering
+    if len(s) == 0:
+        ax.set_title(title, fontweight="bold")
+        ax.text(0.5, 0.5, "No positive data", ha="center", va="center", transform=ax.transAxes)
+        return
+
+    # Optionally clip extreme outliers
+    if clip_q is not None:
+        s = s.clip(upper=s.quantile(clip_q))
+
+    # Create logarithmic bins
+    lo, hi = float(s.min()), float(s.max())
+    bins = np.logspace(np.log10(lo), np.log10(hi), bins_n)
+
+    # Plot histogram
+    counts, edges, patches = ax.hist(s, bins=bins, alpha=0.90)
+
+
+    # Use true logarithmic x-axis
+    ax.set_xscale("log")
+
+    # Compute median value
+    med = float(np.median(s))
+
+    # Find the bin index containing the median
+    idx = np.searchsorted(edges, med, side="right") - 1
+    idx = int(np.clip(idx, 0, len(patches) - 1))
+
+    # Highlight the median bin
+    patches[idx].set_facecolor("red")
+    patches[idx].set_alpha(0.95)
+
+    # Compute bar height and center position
+    bar_height = counts[idx]
+    bar_center = np.sqrt(edges[idx] * edges[idx + 1])
+
+    # Shift text position to avoid overlap
+    text_x_pos = bar_center * text_offset_factor
+
+    # Draw median label above the bar
+    ax.text(
+        text_x_pos,
+        bar_height,
+        f"{prefix}{human_int(med)}{suffix}",
+        ha="center",
+        va="bottom",
+        fontsize=10,
+        fontweight="bold",
+        color="#d62728"
+    )
+
+    # Set plot title
+    ax.set_title(title, fontweight="bold")
+
+    # Set custom x-ticks if provided
+    if ticks_raw:
+        ticks_use = [t for t in ticks_raw if lo <= t <= hi]
+        if not ticks_use:
+            ticks_use = [lo, hi]
+        ax.set_xticks(ticks_use)
+
+    # Disable minor ticks
+    ax.xaxis.set_minor_locator(ticker.NullLocator())
+
+    # Set axis labels and grid
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Number of events")
+    ax.grid(True, alpha=0.25)
+
+# Format numeric values as currency
+def currency_format(x, pos):
+    if x >= 1e9: return f'${x*1e-9:.0f}B'
+    if x >= 1e6: return f'${x*1e-6:.0f}M'
+    if x >= 1e3: return f'${x*1e-3:.0f}K'
+    return f'${x:.0f}'
+
+formatter = ticker.FuncFormatter(currency_format)
+
+# Format numbers without currency symbol
+def human_format(x, pos):
+    if x >= 1e9: return f'{x*1e-9:.0f}B'
+    if x >= 1e6: return f'{x*1e-6:.0f}M'
+    if x >= 1e3: return f'{x*1e-3:.0f}K'
+    return f'{x:.0f}'
+
+# Format numbers as currency using human format
+def currency_format(x, pos):
+    return f"${human_format(x, pos)}"
+
+# Alternative currency formatter with decimals
+def currency_format2(x, pos):
+    if x >= 1e9: return f'${x*1e-9:.1f}B'
+    if x >= 1e6: return f'${x*1e-6:.1f}M'
+    if x >= 1e3: return f'${x*1e-3:.0f}K'
+    return f'${x:.0f}'
